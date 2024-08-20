@@ -218,6 +218,18 @@ namespace UnityEngine.UI
             }
         }
 
+        // Q&A: 当出现以下的Hierarchy的时候，在Editor中双击打开prefab，看到的prefab布局并不正确，然后在选中prefab中的一个物体后，布局刷新正确，为什么发生这种情况？
+        // 布局结构如下:
+        // Content -> VerticalLayoutGroup {Control Child Size的选项没有勾选上} + ContentSizeFitter {Vertical Fit选中Preferred Size}
+        //      Item1 -> VerticalLayoutGroup + ContentSizeFitter
+        //      Item2 -> VerticalLayoutGroup + ContentSizeFitter
+        // A: 当Content发生Rebuild的时候，整体做了2件事情
+        //      1、从Content开始进行深度优先遍历，调用CalculateLayoutInputVertical计算出每一个布局元素的min，preferred，flexible
+        //      2、从Content开始进行广度优先遍历，调用SetLayoutVertical，根据第一步生成的信息设置元素的size
+        //      注意：第2步做了处理优先处理ILayoutSelfController在处理ILayoutController
+        // 发生问题原因就是下面这个方法导致的，对于具有ContentSizeFitter组件的RectTransform在生成的第一帧size.height = 0，需要到第2步才被赋值
+        // 看第2步，我们的遍历顺序是Content -> Item1 -> Item2，当Content发生遍历的时候Item1，Item2的size.height = 0，所以第一帧Content的size.height计算错误
+        // 而第2帧或者选中物体后Content的size.height又更新正确，则是因为在VerticalLayoutGroup缓存了所有child的size，当child的size发生变化的时候，重新触发了Content的Rebuild
         private void GetChildSizes(RectTransform child, int axis, bool controlSize, bool childForceExpand,
             out float min, out float preferred, out float flexible)
         {
