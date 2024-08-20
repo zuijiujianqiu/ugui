@@ -166,6 +166,24 @@ namespace UnityEngine.UI
 
             m_PerformingLayoutUpdate = true;
 
+            // Q&A: 这里的排序算法，我们看到是按照父节点数目进行的升序排序，那么对于以下情况
+            // 布局结构如下：
+            // Content -> VerticalLayoutGroup
+            //      Item1 -> VerticalLayoutGroup
+            //          ItemA -> VerticalLayoutGroup
+            // 当Content，Item1，ItemA同一帧发生Rebuild的时候，我们会按照Content，Item1，ItemA的顺序进行Rebuild
+            // 通过阅读Rebulid的代码，我们可以发现当Content触发Rebuild的时候，我们会遍历和设置height一次Content，Item1，ItemA
+            // 这种情况下可以发现ItemA被遍历和设置了3次，Item1被遍历和设置了2次
+            // 这是否是一个性能优化的点，是什么情况导致我们必须按照这个顺序执行？
+            // A: 当出现以下布局时
+            // Content -> VerticalLayoutGroup {height = 300}
+            //      Item1 -> VerticalLayoutGroup {LayoutElement Flexible Height = 1}
+            //          ItemA -> VerticalLayoutGroup
+            //      Item2 -> VerticalLayoutGroup {LayoutElement Flexible Height = 2}
+            // 从这个布局可以看到，布局的Size的分配是自上而下的
+            // 也即我们先根据Content的height和Item1，Item2设置，分配了Item1，Item2的size
+            // 然后根据Item1的height和ItemA的设置，分配Item2的size
+            // 另外也可以注意到ContentSizeFitter的布局是自下而上的，所以当发生VerticalLayoutGroup和ContentSizeFitter混用的时候需要注意一下
             m_LayoutRebuildQueue.Sort(s_SortLayoutFunction);
 
             for (int i = 0; i <= (int)CanvasUpdate.PostLayout; i++)
