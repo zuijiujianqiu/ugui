@@ -644,6 +644,7 @@ namespace UnityEngine.UI
             m_Velocity = Vector2.zero;
         }
 
+        // Q: 在Editor下拖动UI并没有触发此接口，这个接口是在什么情况下触发的？
         public virtual void OnScroll(PointerEventData data)
         {
             if (!IsActive())
@@ -797,6 +798,7 @@ namespace UnityEngine.UI
 
             // Offset to get content into place in the view.
             Vector2 offset = CalculateOffset(position - m_Content.anchoredPosition);
+            // Q&A: 这里通过offset把position规范在ViewBounds的边界范围之内
             position += offset;
             if (m_MovementType == MovementType.Elastic)
             {
@@ -1080,6 +1082,17 @@ namespace UnityEngine.UI
             }
         }
 
+        // Q&A: 这里的弹性偏移算法的理解？
+        // A: 首先总结弹性偏移的需求
+        //   假设我们拖动的距离是x，真实产生的偏移距离是y
+        //   那么我们对偏移的需求有如下几点
+        //     1、x越大y就越大，但是y需要有一个最大值
+        //     2、随着x增加，y的增速在减缓，也即函数的倒数随x增大减小
+        //     3、在整个过程中导数需要小于1，也即不能出现拖动一个像素，移动2个像素的问题
+        //     4、当x=0的时y=0
+        // 这里主要是借助于函数1/x进行实现此功能，以下公式可以简化为
+        // y = 1 - 1 / (ax + 1)
+        // 可以看到能够满足上方的4个需求
         private static float RubberDelta(float overStretching, float viewSize)
         {
             return (1 - (1 / ((Mathf.Abs(overStretching) * 0.55f / viewSize) + 1))) * viewSize * Mathf.Sign(overStretching);
